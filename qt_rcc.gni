@@ -2,22 +2,21 @@
 # qt_generator.gni
 # GN include file
 #
-# Copyright (c) David Chen, 2017
+# Copyright (c) Taehee Kim, 2017
 #
 # Example usage in GN:
 #
-# qt_rcc_generator("moc_library") {
+# qt_rcc_generator("rcc_library") {
 #     
 #     qt_rcc_generator_path = rebase_path("qt/qt_rcc_generator.py", ".")
 #
-#     sources = [
-#         "src/qt_header1.h",
-#         "src/qt_header2.h",
-#     ]
+#     sources = "resources/something.qrc"
+#
 #     include_dirs = [
 #         "/usr/include/qt5",
 #     ]
-#     moc_out_dir = "qt/moc"
+#
+#     out_dir = "qt/rcc"
 # }
 #
 

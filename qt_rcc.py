@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 #
-# qt_moc_generator.py
+# qt_rcc.py
 #
 # This script takes the qrc files and uses the Qt RCC to generate the source file for resources.
-# The output files will be named: {rcc file}.qrc.cc
+# The output files will be named: {filename}.qrc.cc
 #
 # Copyright (c) Taehee Kim, 2017
 

@@ -6,7 +6,7 @@
 # This script takes the header files and uses the Qt MOC to generate the Meta-Object source.
 # The output files will be named: {header file name}.moc.cc
 #
-# Copyright (c) Taehee, 2017
+# Copyright (c) Taehee Kim, 2017
 
 import os
 import os.path

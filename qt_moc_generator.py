@@ -7,30 +7,16 @@
 #
 # Copyright (c) David Chen, 2017
 
-import argparse
 import os
-import os.path
-import subprocess
 import sys
 
-# From https://stackoverflow.com/questions/377017/test-if-executable-exists-in-python
-def which(program):
-    import os
-    def is_exe(fpath):
-        return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+file_dir = os.path.dirname(__file__)
+sys.path.append(file_dir)
 
-    fpath, fname = os.path.split(program)
-    if fpath:
-        if is_exe(program):
-            return program
-    else:
-        for path in os.environ["PATH"].split(os.pathsep):
-            path = path.strip('"')
-            exe_file = os.path.join(path, program)
-            if is_exe(exe_file):
-                return exe_file
-
-    return None
+import argparse
+import subprocess
+import sys
+import shared
 
 def StripHeaderExtension(filename):
     if not filename.endswith(".h"):
@@ -51,13 +37,10 @@ def main(argv):
 
     options = parser.parse_args()
 
-    # If QTDIR is in the environment, prefer using QTDIR so prepend to PATH.
-    if 'QTDIR' in os.environ:
-        os.environ['PATH'] = os.path.join(os.environ['QTDIR'], 'bin') \
-                + os.pathsep + os.environ['PATH']
+    shared.setupQTDIR()
     
     # MOC exists in the PATH
-    fullpath = which('moc')
+    fullpath = shared.which('moc')
     assert fullpath
     
     moc_dir = os.path.relpath(options.header_in_dir)

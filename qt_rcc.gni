@@ -1,0 +1,84 @@
+#
+# qt_generator.gni
+# GN include file
+#
+# Copyright (c) David Chen, 2017
+#
+# Example usage in GN:
+#
+# qt_rcc_generator("moc_library") {
+#     
+#     qt_rcc_generator_path = rebase_path("qt/qt_rcc_generator.py", ".")
+#
+#     sources = [
+#         "src/qt_header1.h",
+#         "src/qt_header2.h",
+#     ]
+#     include_dirs = [
+#         "/usr/include/qt5",
+#     ]
+#     moc_out_dir = "qt/moc"
+# }
+#
+
+
+template("qt_rcc_generator") {
+  assert(defined(invoker.qt_rcc_generator_path), "Need correct path to qt_rcc.py")
+  assert(defined(invoker.qrc), "Need correct path to qrc file")
+  assert(defined(invoker.out_dir), "Need gen subdirectory")
+  
+  rcc_in_dir = get_path_info(invoker.qrc, "dir")
+
+  # Avoid absolute path because of the assumption that |rcc_in_dir| is
+  # relative to the directory of current BUILD.gn file.
+  rcc_in_dir = rebase_path(rcc_in_dir, ".")
+
+  # we generate "{name}.qrc.cc" from the header files
+  cc_out_dir = "$target_gen_dir/" + invoker.out_dir
+  rcc_filepart = get_path_info(invoker.qrc, "file")
+  rccgen = "$cc_out_dir/$rcc_filepart.cc"
+
+  action_name = "${target_name}_gen"
+  source_set_name = target_name
+
+  # Generate moc cc sources.
+  action(action_name) {
+    visibility = [ ":$source_set_name" ]
+    script = invoker.qt_rcc_generator_path  
+    outputs = [get_path_info(rccgen, "abspath")]
+    args = [
+      "--input",
+      rebase_path(invoker.qrc, root_build_dir),
+      "--output",
+      rebase_path(rccgen, root_build_dir),
+    ]
+  }
+
+  # Build generated rcc sources as source_set.
+  target("source_set", target_name) {
+    forward_variables_from(invoker,
+                           [
+                             "defines",
+                             "testonly",
+                             "visibility",
+                             "include_dirs",
+                           ])
+
+    sources = get_target_outputs(":$action_name")
+
+    if (defined(invoker.extra_configs)) {
+      configs += invoker.extra_configs
+    }
+
+    deps = [
+      ":$action_name",
+    ]
+
+    # This will link any libraries in the deps (the use of invoker.deps in the
+    # action won't link it).
+    if (defined(invoker.deps)) {
+      deps += invoker.deps
+    }
+  }
+}
+

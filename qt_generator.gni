@@ -61,7 +61,7 @@ template("qt_moc_generator") {
 
 
   # we generate "{name}.moc.cc" from the header files
-  cc_out_dir = "$root_gen_dir/" + moc_out_dir
+  cc_out_dir = "$target_gen_dir/" + moc_out_dir #root_gen_dir/
   rel_cc_out_dir = rebase_path(cc_out_dir, root_build_dir)
 
   headers = rebase_path(invoker.sources, moc_in_dir)

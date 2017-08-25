@@ -16,14 +16,13 @@ sys.path.append(file_dir)
 import argparse
 import subprocess
 import sys
-import shared
+import qt_shared
 
 def StripHeaderExtension(filename):
     if not filename.endswith(".h"):
         raise RuntimeError("Invalid header extension: "
                            "{0} .".format(filename))
     return filename.rsplit(".", 1)[0]
-
 
 def main(argv):
     parser = argparse.ArgumentParser()
@@ -37,10 +36,10 @@ def main(argv):
 
     options = parser.parse_args()
 
-    shared.setupQTDIR()
+    qt_shared.setupQTDIR()
     
     # MOC exists in the PATH
-    fullpath = shared.which('moc')
+    fullpath = qt_shared.which('moc')
     assert fullpath
     
     moc_dir = os.path.relpath(options.header_in_dir)

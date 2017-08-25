@@ -16,7 +16,7 @@ sys.path.append(file_dir)
 import argparse
 import subprocess
 import sys
-import shared
+import qt_shared
 
 def main(argv):
     parser = argparse.ArgumentParser()
@@ -27,10 +27,10 @@ def main(argv):
 
     options = parser.parse_args()
 
-    shared.setupQTDIR()
+    qt_shared.setupQTDIR()
     
     # MOC exists in the PATH
-    fullpath = shared.which('rcc')
+    fullpath = qt_shared.which('rcc')
     assert fullpath
     
     input = options.input

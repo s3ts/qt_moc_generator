@@ -24,8 +24,8 @@
 
 template("qt_moc_generator") {
   assert(defined(invoker.qt_moc_generator_path), "Need correct path to qt_moc_generator.py")
-  assert(defined(invoker.sources), "Need sources for gt_moc_generator")
-  moc_sources = invoker.sources
+  assert(defined(invoker.qt_sources), "Need sources for gt_moc_generator")
+  moc_sources = invoker.qt_sources
   moc_in_dir = get_path_info(moc_sources[0], "dir")
 
   if (defined(invoker.moc_in_dir)) {
@@ -64,7 +64,7 @@ template("qt_moc_generator") {
   cc_out_dir = "$target_gen_dir/" + moc_out_dir #root_gen_dir/
   rel_cc_out_dir = rebase_path(cc_out_dir, root_build_dir)
 
-  headers = rebase_path(invoker.sources, moc_in_dir)
+  headers = rebase_path(invoker.qt_sources, moc_in_dir)
   mocgens = []
 
   # List output files.
@@ -98,27 +98,16 @@ template("qt_moc_generator") {
   }
 
   # Build generated moc sources as source_set.
-  target("source_set", target_name) {
-    forward_variables_from(invoker,
-                           [
-                             "defines",
-                             "testonly",
-                             "visibility",
-                             "include_dirs",
-                           ])
+  source_set(target_name) {
+    forward_variables_from(invoker, "*")
 
     sources = get_target_outputs(":$action_name")
-
-    if (defined(invoker.extra_configs)) {
-      configs += invoker.extra_configs
-    }
-
     deps = [
       ":$action_name",
     ]
 
     # This will link any libraries in the deps (the use of invoker.deps in the
-    # action won't link it).
+    ## action won't link it).
     if (defined(invoker.deps)) {
       deps += invoker.deps
     }

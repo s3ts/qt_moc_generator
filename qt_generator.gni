@@ -105,6 +105,12 @@ template("qt_moc_generator") {
     deps = [
       ":$action_name",
     ]
+    if (defined(invoker.cflags)) {
+      cflags += invoker.cflags
+    }
+    if (defined(invoker.ldflags)) {
+      cflags += invoker.ldflags
+    }
 
     # This will link any libraries in the deps (the use of invoker.deps in the
     ## action won't link it).

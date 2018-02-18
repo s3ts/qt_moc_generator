@@ -16,6 +16,9 @@ def which(program):
     import os
     def is_exe(fpath):
         return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+    
+    if os.name == 'nt':
+        program += '.exe'
 
     fpath, fname = os.path.split(program)
     if fpath:

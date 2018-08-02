@@ -33,7 +33,12 @@ def main(argv):
 
     parser.add_argument("headers", nargs="+",
                         help="Input header file(s).")
-
+                        
+    parser.add_argument('-i', "--include-path",
+                        type=str,
+                        action='append', dest='include_paths',
+                        help="Include path. Can use this arg multiple times.")
+                        
     options = parser.parse_args()
 
     qt_shared.setupQTDIR()
@@ -45,12 +50,15 @@ def main(argv):
     moc_dir = os.path.relpath(options.header_in_dir)
     cc_out_dir = options.cc_out_dir
     headers = options.headers
+    include_paths = options.include_paths
+    
+    processed_include_paths = ['-I' + x for x in include_paths] if include_paths else []
     
     for header in headers:
         stripped_name = StripHeaderExtension(header)
         output_cc = os.path.join(cc_out_dir, stripped_name) + ".moc.cc"
 
-        ret = subprocess.call(['moc', os.path.join(moc_dir, header), "-o", output_cc])
+        ret = subprocess.call(['moc', os.path.join(moc_dir, header), "-o", output_cc] + processed_include_paths)
         if ret != 0:
             raise RuntimeError("Moc has returned non-zero status: "
                                "{0} .".format(ret))

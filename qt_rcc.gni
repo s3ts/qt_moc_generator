@@ -40,10 +40,13 @@ template("qt_rcc_generator") {
   action_name = "${target_name}_gen"
   source_set_name = target_name
 
-  # Generate moc cc sources.
+  # Generate rcc sources.
   action(action_name) {
     visibility = [ ":$source_set_name" ]
-    script = invoker.qt_rcc_generator_path  
+    script = invoker.qt_rcc_generator_path
+    if (defined(invoker.inputs)) {
+        inputs = invoker.inputs
+    }
     outputs = [get_path_info(rccgen, "abspath")]
     args = [
       "--input",

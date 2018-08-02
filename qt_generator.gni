@@ -8,7 +8,7 @@
 #
 # qt_moc_generator("moc_library") {
 #     
-#     qt_moc_generator_path = rebase_path("qt/qt_moc_generator.py", ".")
+#     qt_moc_generator_script = rebase_path("qt/qt_moc_generator.py", ".")
 #
 #     sources = [
 #         "src/qt_header1.h",
@@ -21,13 +21,14 @@
 # }
 #
 
+import("//webrtc.gni")
 
 template("qt_moc_generator") {
-  assert(defined(invoker.qt_moc_generator_path), "Need correct path to qt_moc_generator.py")
-  assert(defined(invoker.qt_sources), "Need sources for gt_moc_generator")
-  moc_sources = invoker.qt_sources
-  moc_in_dir = get_path_info(moc_sources[0], "dir")
+  assert(defined(invoker.qt_moc_generator_script), "Need correct path to qt_moc_generator.py")
+  assert(defined(invoker.moc_sources), "Need sources for gt_moc_generator")
+  moc_sources = invoker.moc_sources
 
+  
   if (defined(invoker.moc_in_dir)) {
     moc_in_dir = invoker.moc_in_dir
     foreach(moc_source, moc_sources) {
@@ -64,7 +65,7 @@ template("qt_moc_generator") {
   cc_out_dir = "$target_gen_dir/" + moc_out_dir #root_gen_dir/
   rel_cc_out_dir = rebase_path(cc_out_dir, root_build_dir)
 
-  headers = rebase_path(invoker.qt_sources, moc_in_dir)
+  headers = rebase_path(moc_sources, moc_in_dir)
   mocgens = []
 
   # List output files.
@@ -77,6 +78,13 @@ template("qt_moc_generator") {
       "$cc_out_dir/$header_path.moc.cc",
     ]
   }
+  
+  
+  # Make sure to include all the include paths to MOC
+  inc_dirs_args = []
+  foreach(incdir, invoker.include_dirs) {
+    inc_dirs_args += [ "--include-path", incdir ]
+  }
 
   action_name = "${target_name}_gen"
   source_set_name = target_name
@@ -84,36 +92,43 @@ template("qt_moc_generator") {
   # Generate moc cc sources.
   action(action_name) {
     visibility = [ ":$source_set_name" ]
-    script = invoker.qt_moc_generator_path  
+    script = invoker.qt_moc_generator_script 
     sources = moc_sources
     outputs = get_path_info(mocgens, "abspath")
     args = headers
 
     args += [
       "--header-in-dir",
-      rebase_path(moc_in_dir, root_build_dir),
+      rebase_path(moc_in_dir),
       "--cc-out-dir",
       rel_cc_out_dir,
     ]
+    args += inc_dirs_args
   }
-
+  
   # Build generated moc sources as source_set.
-  source_set(target_name) {
+  target(invoker.target_type, target_name) {
     forward_variables_from(invoker, "*")
 
     sources = get_target_outputs(":$action_name")
-    deps = [
-      ":$action_name",
-    ]
     if (defined(invoker.cflags)) {
       cflags += invoker.cflags
     }
     if (defined(invoker.ldflags)) {
       cflags += invoker.ldflags
     }
+    if (defined(invoker.include_dirs)) {
+      include_dirs += invoker.include_dirs
+    }
+    if (defined(invoker.includes)) {
+      include_dirs += invoker.includes
+    }
+    deps = [
+      ":$action_name",
+    ]
 
     # This will link any libraries in the deps (the use of invoker.deps in the
-    ## action won't link it).
+    # action won't link it).
     if (defined(invoker.deps)) {
       deps += invoker.deps
     }

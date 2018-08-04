@@ -1,0 +1,124 @@
+#
+# macdeploy.gni
+# GN include file
+#
+# Copyright (c) Taehee Kim, 2018 
+# 
+# Wraps the Qt tool called "macdeployqt", allowing you to deploy
+# your Mac apps directly by calling GN tools.
+#
+# Example usage in GN:
+#
+#  qt_app_bundle("YourApp") {
+#
+#    qt_macdeploy_path = rebase_path("qt/macdeploy.py", ".")
+#
+#    executable = "$root_out_dir/ExecutableName"
+#    deps = [":Executable"]
+#
+#    qmldir = rebase_path("your/path/to/qml/files")
+#    
+#    # Optional frameworks, Qt or otherwise!!!
+#    #frameworks = []
+#    #foreach (qtl, qt_libs) {
+#    #  frameworks += [qt_libdir + "/" + qtl + ".framework"]
+#    #}
+#  }
+
+if (is_mac) {
+  import("//build/config/mac/rules.gni")
+} else if (is_ios) {
+  import("//build/config/ios/rules.gni")
+}
+
+template("qt_app_bundle") {
+  assert(defined(invoker.qt_macdeploy_path), "Need correct path to macdeploy.py")
+  assert(defined(invoker.executable), "The executable to pack into bundle.")
+  
+  app_output_extension = "app"
+  macdeploy_path = invoker.qt_macdeploy_path
+  executable = invoker.executable
+  app_qml_dir = invoker.qmldir
+
+  app_target_name = target_name
+  app_deployqt = app_target_name + "_deployqt"
+  app_root_dir = "$root_out_dir/$app_target_name.$app_output_extension"
+  
+  if (defined(executable)) {
+
+    app_executable = app_target_name + "_executable"
+    action(app_deployqt) {
+      forward_variables_from(invoker, [ "deps" ])
+      if (defined(invoker.deps)) {
+        deps += invoker.deps
+      }
+      outfile = "$root_out_dir/$app_executable.deploy.mod" 
+      script = macdeploy_path
+      args = [
+        "--executable", rebase_path(executable),
+        "--libpath", "@executable_path/../Frameworks",
+        "--output", rebase_path(app_root_dir, "", "$root_out_dir"),
+        "--touch", rebase_path(outfile, "", "$root_out_dir"),
+      ]
+      if (defined(app_qml_dir)) {
+        args += [ "--qmldir", app_qml_dir ]
+      }
+      inputs = [executable, script]
+      outputs = [outfile] 
+    }
+
+    bundle_data(app_executable) {
+      forward_variables_from(invoker, [ "deps" ])
+      if (defined(invoker.deps)) {
+        deps += invoker.deps
+      }
+      sources = [ "$executable", ]
+      outputs = [ "{{bundle_executable_dir}}/$app_target_name" ]
+    }
+
+    app_executable_a = app_executable + "_a"
+    bundle_data(app_executable_a) {
+      forward_variables_from(invoker, [ "deps" ])
+      if (defined(invoker.deps)) {
+        deps += invoker.deps
+      }
+      deps += [ ":$app_deployqt",]
+      a = get_target_outputs(":$app_deployqt")
+      sources = a
+      outputs = [ "{{bundle_executable_dir}}/{{source_file_part}}" ]
+    }
+
+  }
+  if (defined(invoker.frameworks)) {
+    app_frameworks = app_target_name + "_frameworks"
+    bundle_data(app_frameworks) {
+      forward_variables_from(invoker, ["frameworks"])
+      sources = frameworks
+      outputs = [
+        "{{bundle_contents_dir}}/Frameworks/{{source_file_part}}",
+      ]
+    }
+  }
+
+  create_bundle(app_target_name) {
+    product_type = "com.apple.product-type.application"
+    bundle_root_dir = app_root_dir 
+    bundle_contents_dir = "$bundle_root_dir/Contents"
+    bundle_resources_dir = "$bundle_contents_dir/Resources"
+    bundle_executable_dir = "$bundle_contents_dir/MacOS"
+    if (!defined(deps)) {
+      deps = []
+    }
+    if (defined(app_frameworks)) {
+      deps += [":$app_frameworks",]
+    }
+    if (defined(app_executable)) {
+      deps += [":$app_executable", ":$app_deployqt", ":$app_executable_a"]
+    }
+    if (defined(invoker.deps)) {
+      deps += invoker.deps
+    }
+  }
+
+}
+

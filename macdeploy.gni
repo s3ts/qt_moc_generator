@@ -35,18 +35,33 @@ template("qt_app_bundle") {
   assert(defined(invoker.qt_macdeploy_path), "Need correct path to macdeploy.py")
   assert(defined(invoker.executable), "The executable to pack into bundle.")
   
-  app_output_extension = "app"
   macdeploy_path = invoker.qt_macdeploy_path
   executable = invoker.executable
   app_qml_dir = invoker.qmldir
 
+  in_dir = get_path_info(macdeploy_path, "dir")
+
+  # Avoid absolute path because of the assumption that |rcc_in_dir| is
+  # relative to the directory of current BUILD.gn file.
+  in_dir = rebase_path(in_dir, ".")
+  
+  app_output_extension = "app"
   app_target_name = target_name
   app_deployqt = app_target_name + "_deployqt"
   app_root_dir = "$root_out_dir/$app_target_name.$app_output_extension"
   
   if (defined(executable)) {
-
+    
     app_executable = app_target_name + "_executable"
+    bundle_data(app_executable) {
+      forward_variables_from(invoker, [ "deps" ])
+      if (defined(invoker.deps)) {
+        deps += invoker.deps
+      }
+      sources = [ "$executable", ]
+      outputs = [ "{{bundle_executable_dir}}/$app_target_name" ]
+    }
+
     action(app_deployqt) {
       forward_variables_from(invoker, [ "deps" ])
       if (defined(invoker.deps)) {
@@ -67,27 +82,45 @@ template("qt_app_bundle") {
       outputs = [outfile] 
     }
 
-    bundle_data(app_executable) {
+    app_rpath = app_executable + "_rpath"
+    action(app_rpath) {
       forward_variables_from(invoker, [ "deps" ])
-      if (defined(invoker.deps)) {
-        deps += invoker.deps
-      }
-      sources = [ "$executable", ]
-      outputs = [ "{{bundle_executable_dir}}/$app_target_name" ]
+      deps += deps
+      deps += [ ":$app_executable", ]
+      script = rebase_path("$in_dir/rpath.py", ".")
+      outfile_e = "$root_out_dir/$app_rpath.mod"
+      outfile = rebase_path(outfile_e, "", "$root_out_dir")
+      args = [ 
+        "--rpath", "@executable_path/../Frameworks", 
+        "--executable", rebase_path("$executable") ,
+        "--touch", outfile
+      ]
+      inputs = ["$executable"]
+      outputs = [outfile_e]
     }
-
+    
     app_executable_a = app_executable + "_a"
     bundle_data(app_executable_a) {
       forward_variables_from(invoker, [ "deps" ])
       if (defined(invoker.deps)) {
         deps += invoker.deps
       }
-      deps += [ ":$app_deployqt",]
+      deps += [ ":$app_deployqt", ":$app_rpath", ":$app_executable" ]
       a = get_target_outputs(":$app_deployqt")
+      a += get_target_outputs(":$app_rpath")
       sources = a
       outputs = [ "{{bundle_executable_dir}}/{{source_file_part}}" ]
     }
-
+  }
+  if (defined(invoker.plugins)) {
+    app_plugins = app_target_name + "_plugins"
+    bundle_data(app_plugins) {
+      forward_variables_from(invoker, ["plugins"])
+      sources = plugins
+      outputs = [
+        "{{bundle_contents_dir}}/PlugIns/{{source_file_part}}",
+      ]
+    }
   }
   if (defined(invoker.frameworks)) {
     app_frameworks = app_target_name + "_frameworks"
@@ -96,6 +129,16 @@ template("qt_app_bundle") {
       sources = frameworks
       outputs = [
         "{{bundle_contents_dir}}/Frameworks/{{source_file_part}}",
+      ]
+    }
+  }
+  if (defined(invoker.pkg_files)) {
+    app_pkg_files = app_target_name + "_pkg_files"
+    bundle_data(app_pkg_files) {
+      forward_variables_from(invoker, ["pkg_files"])
+      sources = pkg_files 
+      outputs = [
+        "{{bundle_contents_dir}}/{{source_file_part}}",
       ]
     }
   }
@@ -109,11 +152,17 @@ template("qt_app_bundle") {
     if (!defined(deps)) {
       deps = []
     }
+    if (defined(app_plugins)) {
+      deps += [":$app_plugins",]
+    }
     if (defined(app_frameworks)) {
       deps += [":$app_frameworks",]
     }
     if (defined(app_executable)) {
-      deps += [":$app_executable", ":$app_deployqt", ":$app_executable_a"]
+      deps += [":$app_executable_a", ":$app_deployqt", ":$app_rpath"]
+    }
+    if (defined(app_pkg_files)) {
+      deps += [":$app_pkg_files"]
     }
     if (defined(invoker.deps)) {
       deps += invoker.deps

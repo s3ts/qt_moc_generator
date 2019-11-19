@@ -38,7 +38,13 @@ template("qt_app_bundle") {
   macdeploy_path = invoker.qt_macdeploy_path
   executable = invoker.executable
   app_qml_dir = invoker.qmldir
-
+  
+  testonly = invoker.testonly
+  deps = []
+  if (defined(invoker.deps)) {
+    deps += invoker.deps
+  }
+  
   in_dir = get_path_info(macdeploy_path, "dir")
 
   # Avoid absolute path because of the assumption that |rcc_in_dir| is
@@ -54,19 +60,11 @@ template("qt_app_bundle") {
     
     app_executable = app_target_name + "_executable"
     bundle_data(app_executable) {
-      forward_variables_from(invoker, [ "deps" ])
-      if (defined(invoker.deps)) {
-        deps += invoker.deps
-      }
       sources = [ "$executable", ]
       outputs = [ "{{bundle_executable_dir}}/$app_target_name" ]
     }
 
     action(app_deployqt) {
-      forward_variables_from(invoker, [ "deps" ])
-      if (defined(invoker.deps)) {
-        deps += invoker.deps
-      }
       outfile = "$root_out_dir/$app_executable.deploy.mod" 
       script = macdeploy_path
       args = [
@@ -84,7 +82,6 @@ template("qt_app_bundle") {
 
     app_rpath = app_executable + "_rpath"
     action(app_rpath) {
-      forward_variables_from(invoker, [ "deps" ])
       deps += deps
       deps += [ ":$app_executable", ]
       script = rebase_path("$in_dir/rpath.py", ".")
@@ -101,10 +98,6 @@ template("qt_app_bundle") {
     
     app_executable_a = app_executable + "_a"
     bundle_data(app_executable_a) {
-      forward_variables_from(invoker, [ "deps" ])
-      if (defined(invoker.deps)) {
-        deps += invoker.deps
-      }
       deps += [ ":$app_deployqt", ":$app_rpath", ":$app_executable" ]
       a = get_target_outputs(":$app_deployqt")
       a += get_target_outputs(":$app_rpath")

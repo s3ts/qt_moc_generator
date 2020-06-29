@@ -27,8 +27,18 @@ def main(argv):
                         help="Add given path to rpath.")
     parser.add_argument("--output",
                         help="Output bundle location.")
+    parser.add_argument("--codesign",
+                        help="Runs codesign with identity on all execs.")
     parser.add_argument("--touch",
                         help="The file to touch indicating success.")
+    parser.add_argument("--always-overwrite",action="store_true", default=False,
+                        help="Always overwrite the files.")
+    parser.add_argument("--no-plugins",action="store_true", default=False,
+                        help="Don't deploy plugins.")
+    parser.add_argument("--no-strip",action="store_true", default=False,
+                        help="Don't strip the executable.")
+    parser.add_argument("--dmg",action="store_true", default=False,
+                        help="Create dmg.")
 
     options = parser.parse_args()
 
@@ -41,11 +51,25 @@ def main(argv):
     args = []
     d = vars(options).iteritems()
     for k,v in d:
-        if k in ["output", "touch"]: continue
+        if k in ["output", "touch"]:
+            continue
+        if k in ["always_overwrite", "no_plugins", "no_strip", "dmg"]:
+            if not v:
+                continue
+            args.append("-" + k.replace('_', '-'))
+            continue
         args.append("-" + k + "=" + v)
     
     assert options.output
     args.append(options.output)
+
+    subprocArgs = [
+        fullpath, 
+        options.output,
+        "-verbose=2"
+    ] + args
+    
+    print(' '.join(subprocArgs))
 
     ret = subprocess.call([
         fullpath, 

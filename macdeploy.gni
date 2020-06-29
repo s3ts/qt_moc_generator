@@ -53,58 +53,22 @@ template("qt_app_bundle") {
   
   app_output_extension = "app"
   app_target_name = target_name
-  app_deployqt = app_target_name + "_deployqt"
-  app_root_dir = "$root_out_dir/$app_target_name.$app_output_extension"
-  
-  if (defined(executable)) {
-    
-    app_executable = app_target_name + "_executable"
-    bundle_data(app_executable) {
-      sources = [ "$executable", ]
-      outputs = [ "{{bundle_executable_dir}}/$app_target_name" ]
-    }
+  print(app_target_name)
+  print("hi")
 
-    action(app_deployqt) {
-      outfile = "$root_out_dir/$app_executable.deploy.mod" 
-      script = macdeploy_path
-      args = [
-        "--executable", rebase_path(executable),
-        "--libpath", "@executable_path/../Frameworks",
-        "--output", rebase_path(app_root_dir, "", "$root_out_dir"),
-        "--touch", rebase_path(outfile, "", "$root_out_dir"),
-      ]
-      if (defined(app_qml_dir)) {
-        args += [ "--qmldir", app_qml_dir ]
-      }
-      inputs = [executable, script]
-      outputs = [outfile] 
-    }
-
-    app_rpath = app_executable + "_rpath"
-    action(app_rpath) {
-      deps += deps
-      deps += [ ":$app_executable", ]
-      script = rebase_path("$in_dir/rpath.py", ".")
-      outfile_e = "$root_out_dir/$app_rpath.mod"
-      outfile = rebase_path(outfile_e, "", "$root_out_dir")
-      args = [ 
-        "--rpath", "@executable_path/../Frameworks", 
-        "--executable", rebase_path("$executable") ,
-        "--touch", outfile
-      ]
-      inputs = ["$executable"]
-      outputs = [outfile_e]
-    }
-    
-    app_executable_a = app_executable + "_a"
-    bundle_data(app_executable_a) {
-      deps += [ ":$app_deployqt", ":$app_rpath", ":$app_executable" ]
-      a = get_target_outputs(":$app_deployqt")
-      a += get_target_outputs(":$app_rpath")
-      sources = a
-      outputs = [ "{{bundle_executable_dir}}/{{source_file_part}}" ]
-    }
+  if (defined(invoker.app_name)) {
+    app_name = invoker.app_name
   }
+  else { app_name = app_target_name }
+
+  app_deployqt = app_target_name + "_deployqt"
+  app_root_dir = "$root_out_dir/$app_name.$app_output_extension"
+
+  bundle_root_dir = app_root_dir
+  bundle_contents_dir = "$bundle_root_dir/Contents"
+  bundle_resources_dir = "$bundle_contents_dir/Resources"
+  bundle_executable_dir = "$bundle_contents_dir/MacOS"
+
   if (defined(invoker.plugins)) {
     app_plugins = app_target_name + "_plugins"
     bundle_data(app_plugins) {
@@ -115,6 +79,7 @@ template("qt_app_bundle") {
       ]
     }
   }
+
   if (defined(invoker.frameworks)) {
     app_frameworks = app_target_name + "_frameworks"
     bundle_data(app_frameworks) {
@@ -125,23 +90,128 @@ template("qt_app_bundle") {
       ]
     }
   }
+
   if (defined(invoker.pkg_files)) {
     app_pkg_files = app_target_name + "_pkg_files"
     bundle_data(app_pkg_files) {
-      forward_variables_from(invoker, ["pkg_files"])
-      sources = pkg_files 
+      sources = invoker.pkg_files
       outputs = [
         "{{bundle_contents_dir}}/{{source_file_part}}",
       ]
     }
   }
 
+  if (defined(invoker.resource_files)) {
+    app_resource_files = app_target_name + "_resource_files"
+    bundle_data(app_resource_files) {
+      sources = invoker.resource_files
+      outputs = [
+        "{{bundle_resources_dir}}/{{source_file_part}}",
+      ]
+    }
+  }
+
+  if (defined(executable)) {
+    
+    app_executable = app_target_name + "_executable"
+    app_rpath = app_executable + "_rpath"
+
+    #action(app_rpath) {
+    #  deps += deps
+    #  #deps += [ ":$executable", ]
+    #  script = rebase_path("$in_dir/rpath.py", ".")
+    #  outfile_e = "$root_out_dir/$app_rpath.mod"
+    #  #outfile = rebase_path(outfile_e, "", "$root_out_dir")
+    #  args = [
+    #    "--rpath", "@executable_path/../Frameworks",
+    #    "--executable", rebase_path("$executable") ,
+    #    "--touch", outfile_e
+    #  ]
+    #  inputs = ["$executable"]
+    #  outputs = [outfile_e]
+    #}
+
+    action(app_rpath) {
+      #public_deps += invoker.deps
+      #deps += [ ":$executable", ]
+      outfile = "$target_gen_dir/$app_rpath.mod"
+      script = rebase_path("$in_dir/rpath.py", ".")
+      args = [
+        "--rpath", "@executable_path/../Frameworks",
+        "--executable", rebase_path("$executable") ,
+        "--touch", rebase_path(outfile, "", root_build_dir)
+      ]
+      inputs = ["$executable"]
+      outputs = [outfile]
+    }
+
+    bundle_data(app_executable) {
+      deps += [ ":$app_rpath" ]
+      sources = [ "$executable", ]
+      outputs = [ "{{bundle_executable_dir}}/$app_name" ]
+    }
+
+    app_executable_a = app_executable + "_a"
+    bundle_data(app_executable_a) {
+      deps += [ 
+        #":$app_deployqt",
+        ":$app_rpath", 
+      ]
+      #a = get_target_outputs(":$app_deployqt")
+      a = get_target_outputs(":$app_rpath")
+      sources = a
+      outputs = [ "{{bundle_executable_dir}}/{{source_file_part}}" ]
+    }
+
+    action(app_deployqt) {
+      if (!defined(deps)) {
+        deps = []
+      }
+      if (defined(invoker.deps)) {
+        deps += invoker.deps
+      }
+      if (defined(app_plugins)) {
+        deps += [":$app_plugins",]
+      }
+      if (defined(app_frameworks)) {
+        deps += [":$app_frameworks",]
+      }
+      if (defined(app_pkg_files)) {
+        deps += [":$app_pkg_files"]
+      }
+      if (defined(app_resource_files)) {
+        deps += [":$app_resource_files"]
+      }
+      deps += [
+        ":$app_executable",
+        ":$app_rpath",
+        ":$app_executable_a",
+      ]
+      outfile = "$root_out_dir/$app_executable.deploy.mod" 
+      script = macdeploy_path
+      #rebase_path(executable)
+      args = [
+        "--executable", rebase_path("$app_name", "", "$bundle_executable_dir"),
+        "--libpath", "@executable_path/../Frameworks",
+        "--output", rebase_path(app_root_dir, "", "$root_out_dir"),
+        "--touch", rebase_path(outfile, "", "$root_out_dir"),
+        "--always-overwrite",
+        #"--no-plugins",
+      ]
+      if (is_debug) { args += [ "--no-strip" ] }
+      if (invoker.create_dmg) { args += [ "--dmg" ] }
+      if (defined(invoker.codesign)) { args += [ "--codesign", invoker.codesign ] }
+      if (defined(app_qml_dir)) {
+        args += [ "--qmldir", app_qml_dir ]
+      }
+      inputs = [executable, script, ]
+      outputs = [outfile] 
+    }
+    
+  }
+
   create_bundle(app_target_name) {
     product_type = "com.apple.product-type.application"
-    bundle_root_dir = app_root_dir 
-    bundle_contents_dir = "$bundle_root_dir/Contents"
-    bundle_resources_dir = "$bundle_contents_dir/Resources"
-    bundle_executable_dir = "$bundle_contents_dir/MacOS"
     if (!defined(deps)) {
       deps = []
     }
@@ -151,11 +221,18 @@ template("qt_app_bundle") {
     if (defined(app_frameworks)) {
       deps += [":$app_frameworks",]
     }
-    if (defined(app_executable)) {
-      deps += [":$app_executable_a", ":$app_deployqt", ":$app_rpath"]
-    }
     if (defined(app_pkg_files)) {
       deps += [":$app_pkg_files"]
+    }
+    if (defined(app_resource_files)) {
+      deps += [":$app_resource_files"]
+    }
+    if (defined(app_executable)) {
+      deps += [
+        ":$app_executable_a",
+        ":$app_rpath",
+        ":$app_deployqt", 
+      ]
     }
     if (defined(invoker.deps)) {
       deps += invoker.deps

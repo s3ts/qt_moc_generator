@@ -28,16 +28,26 @@ def main(argv):
     rpath = options.rpath
     touch = options.touch
 
-    ret = subprocess.call([
+    p = subprocess.Popen([
         fullpath, '-add_rpath', rpath, executable
     ])
+    outs = None 
+    errs = None
+    ret = -1
+    try:
+        outs, errs = p.communicate()
+        ret = 0
+    except:
+        if outs.find("would duplicate path") >= 0 or errs.find("would duplicate path") >= 0:
+            ret = 0
+
     if ret != 0:
         raise RuntimeError("Rpath has returned non-zero status: "
                            "{0} .".format(ret))
     if touch:
         ret = subprocess.call(['touch', touch])
     if ret != 0:
-        raise RuntimeError("Rpath has returned non-zero status: "
+        raise RuntimeError("Touch for rpath has returned non-zero status: "
                            "{0} .".format(ret))
     
 
